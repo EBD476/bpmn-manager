@@ -60,7 +60,7 @@ type ProcessInstance struct {
 	ProcessID       string            `json:"process_id"`
 	ProcessName     string            `json:"process_name"`
 	CurrentActivity string            `json:"current_activity"`
-	Status          string            `json:"status"`
+	Status          string            `json:"processStatus"`
 	StartedAt       time.Time         `json:"started_at"`
 	Variables       map[string]string `json:"variables"`
 }
@@ -74,8 +74,8 @@ type UserTask struct {
 	ActivityName string    `json:"activity_name"`
 	Assignee     string    `json:"assignee"`
 	DueDate      time.Time `json:"due_date"`
-	Status       string    `json:"status"`
-	Priority     string    `json:"priority"`
+	Status       string    `json:"processStatus"`
+	Priority     string    `json:"status"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -88,7 +88,7 @@ type RunningProcess struct {
 	CurrentActivity      string    `json:"current_activity"`
 	StartTime            time.Time `json:"startTime"`
 	Duration             string    `json:"duration"`
-	Status               string    `json:"status"`
+	Status               string    `json:"processStatus"`
 }
 
 type ProcessDetails struct {
@@ -101,6 +101,7 @@ type ProcessDetails struct {
 	Description          string                 `json:"description"`
 	Version              string                 `json:"version"`
 	CreatedAt            time.Time              `json:"created_at"`
+	Duration             int                    `json:"duration"`
 	Activities           []ProcessActivity      `json:"activities"`
 	Instances            []ProcessInstance      `json:"instances"`
 	Statistics           ProcessStatistics      `json:"statistics"`
@@ -116,6 +117,7 @@ type ProcessActivity struct {
 	Order       int       `json:"order"`
 	StartTime   time.Time `json:"startTime"`
 	EndTime     time.Time `json:"endTime"`
+	Duration    int       `json:"duration"`
 }
 
 type ProcessStatistics struct {

@@ -147,7 +147,9 @@ func (c *APIClient) getStringField(data map[string]interface{}, field string) st
 }
 
 func (c *APIClient) GetRunningProcesses() ([]models.RunningProcess, error) {
-	body, err := c.doRequest("GET", "/api/running-processes")
+	// body, err := c.doRequest("GET", "/api/running-processes")
+	body, err := c.doRequest("GET", "/api/all-instances")
+
 	if err != nil {
 		return nil, err
 	}
@@ -175,6 +177,20 @@ func (c *APIClient) GetProcessDetails(processID string) (*models.ProcessDetails,
 	}
 
 	return &response, nil
+}
+
+func (c *APIClient) GetCompletedProcesses() ([]models.ProcessDetails, error) {
+	body, err := c.doRequest("GET", "/api/completed-processes")
+	if err != nil {
+		return nil, err
+	}
+
+	var response []models.ProcessDetails
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse running processes: %v", err)
+	}
+
+	return response, nil
 }
 
 func (c *APIClient) GetCompletedTasks() ([]models.UserTask, error) {

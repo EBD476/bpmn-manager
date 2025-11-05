@@ -87,9 +87,11 @@ func (m *BPMNManager) createMainMenu() tview.Primitive {
 	header := tview.NewTextView().
 		SetTextAlign(tview.AlignCenter).
 		SetText(fmt.Sprintf("🏭 BPMN Activity Manager - %s", m.baseURL)).
-		SetTextColor(tcell.ColorYellow)
+		// SetTextColor(tcell.ColorYellow)
+		SetTextColor(tcell.ColorBeige)
 	header.SetBorder(true).SetTitle(" BPMN Manager ")
-	header.SetBackgroundColor(tcell.ColorDarkSlateBlue)
+	// header.SetBackgroundColor(tcell.ColoDarkSlateBlue)
+	header.SetBackgroundColor(tcell.Color142)
 
 	// Content area
 	m.mainContent = tview.NewFlex().SetDirection(tview.FlexColumn)
@@ -116,11 +118,12 @@ func (m *BPMNManager) createMainMenu() tview.Primitive {
 		SetRegions(true).
 		SetWordWrap(true)
 	// contentView.SetText(m.formatRTLText(welcomeText))
-	m.infoPanel.SetText("\n\n🎯 Welcome to BPMN Manager!\n\nUse the navigation menu to:\n• View your assigned tasks:\n• View completed tasks\n• Monitor running processes\n• Check process details\n\nPress F5 to refresh data")
-	m.infoPanel.SetBorder(true).SetTitle(" Dashboard ")
+	m.infoPanel.SetBorder(true).SetTitle(" Dashboard ").SetBorderColor(tcell.Color102)
 
-	m.mainContent.AddItem(m.nav, 35, 1, true)
-	m.mainContent.AddItem(m.infoPanel, 0, 3, false)
+	m.updateDashboardPanel()
+
+	// m.mainContent.AddItem(m.nav, 35, 1, true)
+	// m.mainContent.AddItem(m.infoPanel, 0, 3, false)
 
 	// Footer
 	footer := tview.NewTextView().
@@ -153,11 +156,15 @@ func (m *BPMNManager) createNavigationPanel() *tview.List {
 		AddItem("🔎 Find Process ", "Find process by id", 'f', func() {
 			m.showProcessSearch()
 		}).
+		AddItem("🚀 Start Process Instance ", "Launch process instance", 'l', func() {
+			m.apiClient.StartProcess()
+			m.showMessage("New process instance started!")
+		}).
 		AddItem("📊 Process Details", "View process information", 'd', func() {
 			m.showProcessSelection()
 		}).
 		AddItem("🔄 Refresh Data", "Reload all data", 'f', func() {
-			m.showDashboard()
+			m.updateDashboardPanel()
 		}).
 		AddItem("⚙️  Settings", "Configure connection", 's', func() {
 			m.showSettings()
@@ -165,11 +172,46 @@ func (m *BPMNManager) createNavigationPanel() *tview.List {
 		AddItem("❌ Quit", "Exit application", 'q', func() {
 			m.app.Stop()
 		})
-	nav.SetBorder(true).SetTitle(" Navigation ")
+	nav.SetBorder(true).SetTitle(" Navigation ").SetBorderColor(tcell.Color102)
 	selectedStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorGreen)
 	nav.SetSelectedStyle(selectedStyle)
 
 	return nav
+}
+
+// -----------------------------------------------------------------------
+
+func (m *BPMNManager) updateDashboardPanel() {
+
+	tasks, _ := m.apiClient.GetUserTasks()
+	completedTasks, _ := m.apiClient.GetCompletedTasks()
+	processes, _ := m.apiClient.GetRunningProcesses()
+	completedProcesses, _ := m.apiClient.GetCompletedProcesses()
+
+	detailsText := fmt.Sprintf(`
+
+ 🎯 Welcome to BPMN Manager!
+  [yellow]---------------------------------	
+ [yellow] 📊  Total Running Tasks: %d   
+  📊  Total Completed Tasks: %d 
+  ---------------------------------
+[yellow]  📊  Total Running Processes: %d   
+  📊  Total Completed Processes: %d 
+ ----------------------------------[white] 
+ 
+  Use the navigation menu to:
+  • View your assigned tasks
+  • View completed tasks
+  • Monitor running processes
+  • Check process details
+  
+  Press F5 to refresh data`, len(tasks), len(completedTasks), len(processes), len(completedProcesses))
+
+	m.infoPanel.SetText(detailsText)
+	m.mainContent.Clear()
+	m.mainContent.AddItem(m.nav, 35, 1, true)
+	m.mainContent.AddItem(m.infoPanel, 0, 3, false)
+	m.app.SetFocus(m.nav)
 }
 
 // -----------------------------------------------------------------------
@@ -251,8 +293,8 @@ func (m *BPMNManager) createTaskDetails(tasks []models.UserTask) *tview.TextView
 	completedTasks, _ := m.apiClient.GetCompletedTasks()
 
 	detailsText := fmt.Sprintf(`Task Summary:
-[yellow:darkgreen]    📊  Total Completed Tasks: %d 
-	📊  Total Available Tasks: %d `, len(completedTasks), len(tasks))
+[yellow:darkgreen]    📊  Total Completed Tasks: %d    
+	📊  Total Available Tasks: %d    `, len(completedTasks), len(tasks))
 	// taskDetails.SetText(fmt.Sprintf("\n[yellow:darkgreen]📊 Total completed tasks : %d", len(completedTasks)))
 
 	// 	detailsText := fmt.Sprintf(`Process: Order Processing
@@ -275,7 +317,7 @@ func (m *BPMNManager) createTaskDetails(tasks []models.UserTask) *tview.TextView
 
 	// taskDetails.SetText(fmt.Sprintf("\n[yellow:darkgreen]📊 Total tasks : %d - %s[white]\n\n", len(tasks), time.Now().Format("2006-01-02 15:04:05")))
 
-	taskDetails.SetBorder(true)
+	taskDetails.SetBorder(true).SetBorderColor(tcell.Color102)
 	taskDetails.SetTitle("Task Details")
 	taskDetails.SetText(detailsText)
 
@@ -285,19 +327,25 @@ func (m *BPMNManager) createTaskDetails(tasks []models.UserTask) *tview.TextView
 // -----------------------------------------------------------------------
 func (m *BPMNManager) createProcessDetailsPanel(processes []models.RunningProcess) *tview.TextView {
 
-	// fmt.Sprintf("\n\n\n\n\n\n\n[ColorDarkGreen]📊 Total processes : %d - %s[white]\n\n", len(processes), time.Now().Format("2006-01-02 15:04:05"))
-
 	taskDetails := tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
 		SetWordWrap(true)
 
-	taskDetails.SetBorder(true)
-	taskDetails.SetTitle("Task Details")
+	completedTasks, _ := m.apiClient.GetCompletedProcesses()
+
+	detailsText := fmt.Sprintf(`Task Summary:
+[yellow]  📊  Total Running Processes: %d   
+  📊  Total Completed Processes: %d [white] `, len(processes), len(completedTasks))
+
+	taskDetails.SetBorder(true).SetBorderColor(tcell.Color102)
+	taskDetails.SetText(detailsText)
+	taskDetails.SetTitle("Process Details")
 
 	return taskDetails
 }
 
+// -----------------------------------------------------------------------
 // CreateModalForTaskCompletion function
 func (m *BPMNManager) CreateModalForTaskCompletion(taskId string) tview.Primitive {
 	// Create a new modal with a title and content
@@ -400,6 +448,7 @@ func (m *BPMNManager) createProcessDetails(processId string) string {
 	detailsText += "[orange]Activities:"
 
 	for _, activity := range process.Activities {
+
 		detailsText += fmt.Sprintf(`[orange]
 	[orange:gray]TaskId: %s	[orange:darkgreen] 
 	ActivityId: %s
@@ -408,6 +457,7 @@ func (m *BPMNManager) createProcessDetails(processId string) string {
 	Assignee: %s
 	StartTime: %s
 	EndTime: %s
+	Duration: %s
 	--------------------------------------`,
 			activity.TaskId,
 			activity.ID,
@@ -415,12 +465,39 @@ func (m *BPMNManager) createProcessDetails(processId string) string {
 			activity.Type,
 			activity.Assignee,
 			activity.StartTime.Format("2006-01-02 15:04:05"),
-			activity.EndTime.Format("2025-01-02 15:04:05"),
+			formatEndTime(activity.EndTime), //.Format("2025-01-02 15:04:05"),
+			formatDuration(activity.Duration/1000),
 		)
 	}
 
 	return detailsText
 
+}
+
+// -----------------------------------------------------------------------
+// FormatDuration takes a duration in seconds and returns it in "XXh XXm XXs" format
+func formatDuration(durationInSeconds int) string {
+	// Convert seconds to time.Duration
+	duration := time.Duration(durationInSeconds) * time.Second
+
+	// Get the hours, minutes, and seconds from the duration
+	hours := int(duration.Hours())
+	minutes := int(duration.Minutes()) % 60
+	seconds := int(duration.Seconds()) % 60
+
+	// Return the formatted duration string
+	return fmt.Sprintf("%dh %dm %ds", hours, minutes, seconds)
+}
+
+// -----------------------------------------------------------------------
+// formatEndTime formats the EndTime if it's not the zero value
+func formatEndTime(t time.Time) string {
+	if t.IsZero() {
+		// Handle the zero value case (process is still ongoing or no end time is set)
+		return "Not Finished" // You can replace this with an empty string or another placeholder
+	}
+	// Return the formatted EndTime if valid
+	return t.Format("2006-01-02 15:04:05")
 }
 
 // -----------------------------------------------------------------------
@@ -463,6 +540,7 @@ func (m *BPMNManager) showCompletedTaskDetails() {
 	// Create tasks table
 	table := tview.NewTable().
 		SetBorders(false).
+		SetFixed(1, 0).
 		SetSelectable(true, false).SetBordersColor(tcell.Color100)
 
 	selectedStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorGreen)
@@ -489,7 +567,7 @@ func (m *BPMNManager) showCompletedTaskDetails() {
 		table.SetCell(row+1, 3, statusCell)
 	}
 
-	table.SetBorder(true)
+	table.SetBorder(true).SetBorderColor(tcell.Color102)
 	table.SetTitle(" Completed Tasks List")
 
 	m.mainContent.Clear()
@@ -510,6 +588,7 @@ func (m *BPMNManager) createUserTasksTable() *tview.Flex {
 	// Create tasks table
 	table := tview.NewTable().
 		SetBorders(false).
+		SetFixed(1, 0).
 		SetSelectable(true, false).SetBordersColor(tcell.Color100)
 
 	selectedStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorGreen)
@@ -600,7 +679,7 @@ func (m *BPMNManager) createUserTasksTable() *tview.Flex {
 				})
 				// SetButtonsAlign(tview.AlignCenter).
 
-			form.SetBorder(true)
+			form.SetBorder(true).SetBorderColor(tcell.Color102)
 			form.SetTitle(" User Task Form ")
 			// Create a status message to show task completion (could simulate a BPMN task state)
 			// statusMessage := tview.NewTextView().
@@ -630,7 +709,7 @@ func (m *BPMNManager) createUserTasksTable() *tview.Flex {
 		AddItem(table, 0, 2, true)
 
 	flex.SetTitle("Task List")
-	flex.SetBorder(true)
+	flex.SetBorder(true).SetBorderColor(tcell.Color102)
 
 	return flex
 
@@ -658,6 +737,7 @@ func (m *BPMNManager) showUserTasks() {
 			// Create tasks table
 			table := tview.NewTable().
 				SetBorders(true).
+				SetFixed(1, 0).
 				SetSelectable(true, false)
 
 			// Headers
@@ -720,13 +800,14 @@ func (m *BPMNManager) createRunningProcesses() {
 	// Create tasks table
 	table := tview.NewTable().
 		SetBorders(false).
+		SetFixed(1, 0).
 		SetSelectable(true, false).SetBordersColor(tcell.Color100)
 
 	selectedStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorGreen)
 	table.SetSelectedStyle(selectedStyle)
 
 	// Headers
-	headers := []string{"ProcessID", "| ProcessDefinitionId", "| ProcessDefinitionKey", "| StartTime"}
+	headers := []string{"ProcessID", "| ProcessStatus", "| ProcessDefKey", "| StartTime"}
 	for i, header := range headers {
 		table.SetCell(0, i,
 			tview.NewTableCell(header).
@@ -740,9 +821,9 @@ func (m *BPMNManager) createRunningProcesses() {
 	// Add data to table
 	for row, process := range processes {
 		table.SetCell(row+1, 0, tview.NewTableCell(process.ProcessID))
-		table.SetCell(row+1, 1, tview.NewTableCell("| "+process.ProcessDefinitionId))
+		table.SetCell(row+1, 1, tview.NewTableCell("| "+process.Status))
 		table.SetCell(row+1, 2, tview.NewTableCell("| "+process.ProcessDefinitionKey))
-		table.SetCell(row+1, 3, tview.NewTableCell(process.StartTime.Format("2006-01-02 15:04:05")))
+		table.SetCell(row+1, 3, tview.NewTableCell("| "+process.StartTime.Format("2006-01-02 15:04:05")))
 	}
 
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -776,15 +857,15 @@ func (m *BPMNManager) createRunningProcesses() {
 		AddItem(totalText, 0, 1, true)
 
 	flex.SetTitle(" Process List ")
-	flex.SetBorder(true)
+	flex.SetBorder(true).SetBorderColor(tcell.Color102)
 
 	m.mainContent.Clear()
 	m.mainContent.AddItem(m.nav, 35, 1, true)
-	m.mainContent.AddItem(flex, 0, 1, true)
+	m.mainContent.AddItem(flex, 0, 3, true)
 	m.app.SetFocus(flex)
 
 	m.infoPanel = m.createProcessDetailsPanel(processes)
-	m.mainContent.AddItem(m.infoPanel, 0, 1, true)
+	m.mainContent.AddItem(m.infoPanel, 0, 3, true)
 
 }
 
@@ -806,6 +887,7 @@ func (m *BPMNManager) showRunningProcesses() {
 		m.app.QueueUpdateDraw(func() {
 			table := tview.NewTable().
 				SetBorders(true).
+				SetFixed(1, 0).
 				SetSelectable(true, false)
 
 			headers := []string{"Process", "Current Activity", "Status", "Started"}
@@ -858,7 +940,7 @@ func (m *BPMNManager) showProcessSearch() {
 			m.pages.SwitchToPage("main")
 		})
 
-	form.SetBorder(true).SetTitle(" Enter Process ID ")
+	form.SetBorder(true).SetTitle(" Enter Process ID ").SetBorderColor(tcell.Color102)
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexColumn)
 	flex.AddItem(form, 40, 2, true)
@@ -890,7 +972,7 @@ func (m *BPMNManager) showProcessSelection() {
 func (m *BPMNManager) showProcessDetails(processID string) {
 
 	details := m.createProcessDetails(processID)
-	m.infoPanel.SetBackgroundColor(tcell.ColorDarkGreen)
+	m.infoPanel.SetBackgroundColor(tcell.ColorDarkGreen).SetBorderColor(tcell.Color102)
 	m.infoPanel.SetDynamicColors(true)
 	m.infoPanel.SetTitle("Process Details")
 	m.infoPanel.SetText(details)
@@ -999,20 +1081,14 @@ func (m *BPMNManager) Run() error {
 		switch event.Key() {
 		case tcell.KeyF5:
 			// m.showProcessDetails("123")
-			m.showDashboard()
+			m.updateDashboardPanel()
 			return nil
 		case tcell.KeyF3:
 			m.showProcessSearch()
 			return nil
 		case tcell.KeyF2:
 			if m.currentPage == "process_selection" {
-				m.mainContent.Clear()
-				m.mainContent.AddItem(m.nav, 35, 1, true)
-				m.infoPanel.SetText("\n\n🎯 Welcome to BPMN Manager!\n\nUse the navigation menu to:\n• View your assigned tasks:\n• View completed tasks\n• Monitor running processes\n• Check process details\n\nPress F5 to refresh data")
-				m.infoPanel.SetBorder(true).SetTitle(" Dashboard ")
-				m.mainContent.AddItem(m.infoPanel, 0, 3, false)
-				m.pages.SwitchToPage("main")
-				m.app.SetFocus(m.nav)
+				m.updateDashboardPanel()
 			}
 			return nil
 		case tcell.KeyCtrlC:
@@ -1022,13 +1098,7 @@ func (m *BPMNManager) Run() error {
 			if m.currentPage == "process_selection" {
 				return nil
 			}
-			m.mainContent.Clear()
-			m.mainContent.AddItem(m.nav, 35, 1, true)
-			m.infoPanel.SetText("\n\n🎯 Welcome to BPMN Manager!\n\nUse the navigation menu to:\n• View your assigned tasks:\n• View completed tasks\n• Monitor running processes\n• Check process details\n\nPress F5 to refresh data")
-			m.infoPanel.SetBorder(true).SetTitle(" Dashboard ")
-			m.mainContent.AddItem(m.infoPanel, 0, 3, false)
-			m.pages.SwitchToPage("main")
-			m.app.SetFocus(m.nav)
+			m.updateDashboardPanel()
 			return nil
 		}
 		return event
