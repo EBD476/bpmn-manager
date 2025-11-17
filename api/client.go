@@ -41,6 +41,8 @@ func (c *APIClient) doRequest(method, endpoint string) ([]byte, error) {
 	// Add headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "BPMN-Manager-CLI/1.0")
+	req.SetBasicAuth("workflow", "wrkflw-system")
+
 	if c.authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+c.authToken)
 	}
@@ -118,9 +120,13 @@ func (c *APIClient) GetUserTasks() ([]models.UserTask, error) {
 	// 	return nil, nil
 	// }
 
-	body, err := c.doRequest("GET", "/api/user/tasks")
+	body, err := c.doRequest("GET", "/api/user/tasks/all")
 	if err != nil {
 		return nil, err
+	}
+
+	if body == nil || len(body) == 0 {
+		return nil, fmt.Errorf("empty response body")
 	}
 
 	var response []models.UserTask

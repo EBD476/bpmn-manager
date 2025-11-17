@@ -166,7 +166,7 @@ func (m *BPMNManager) createNavigationPanel() *tview.List {
 		AddItem("🔄 Refresh Data", "Reload all data", 'f', func() {
 			m.updateDashboardPanel()
 		}).
-		AddItem("⚙️  Settings", "Configure connection", 's', func() {
+		AddItem("⚙️ Settings", "Configure connection", 's', func() {
 			m.showSettings()
 		}).
 		AddItem("❌ Quit", "Exit application", 'q', func() {
@@ -426,12 +426,16 @@ func (m *BPMNManager) createProcessDetails(processId string) string {
 	ProcessDefinitionId: %s
 	ProcessDefinitionKey: %s
 	StartTime: %s
+	EndtTime: %s
+	Duration: %s
 `,
 		process.ID,
 		len(process.Activities),
 		process.ProcessDefinitionId,
 		process.ProcessDefinitionKey,
 		process.StartTime,
+		process.EndTime,
+		formatDuration(process.Duration/1000),
 	)
 
 	detailsText += "[violet]CurrentVariables:\n"
@@ -502,6 +506,12 @@ func formatEndTime(t time.Time) string {
 
 // -----------------------------------------------------------------------
 func (m *BPMNManager) updateDashboard(tasks []models.UserTask) {
+
+	if len(tasks) < 1 {
+		m.infoPanel.Clear()
+		fmt.Fprintf(m.infoPanel, "⚠️ No data available ...")
+		return
+	}
 
 	for i, task := range tasks {
 		if i >= 4 { // Show only first 5 tasks
@@ -595,7 +605,7 @@ func (m *BPMNManager) createUserTasksTable() *tview.Flex {
 	table.SetSelectedStyle(selectedStyle)
 
 	// Headers
-	headers := []string{"TaskID|", "TaskName", "|ProcessID", "|Assignee"}
+	headers := []string{"TaskID|", "TaskName", "|TaskDefinitionKey", "|ProcessID", "|Assignee"}
 	for i, header := range headers {
 		table.SetCell(0, i,
 			tview.NewTableCell(header).
@@ -610,10 +620,11 @@ func (m *BPMNManager) createUserTasksTable() *tview.Flex {
 	for row, task := range tasks {
 		table.SetCell(row+1, 0, tview.NewTableCell(task.ID+" |"))
 		table.SetCell(row+1, 1, tview.NewTableCell(reverseString(task.Name)).SetAlign(tview.AlignRight))
-		table.SetCell(row+1, 2, tview.NewTableCell("|"+task.ProcessID))
+		table.SetCell(row+1, 2, tview.NewTableCell("|"+task.TaskDefinitionKey))
+		table.SetCell(row+1, 3, tview.NewTableCell("|"+task.ProcessID))
 		statusCell := tview.NewTableCell("|" + task.Assignee)
 		statusCell.SetTextColor(tcell.ColorYellow)
-		table.SetCell(row+1, 3, statusCell)
+		table.SetCell(row+1, 4, statusCell)
 	}
 
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -630,7 +641,10 @@ func (m *BPMNManager) createUserTasksTable() *tview.Flex {
 			taskId := strings.ReplaceAll(table.GetCell(selectedRow, 0).Text, "|", "")
 			taskId = strings.TrimSpace(taskId)
 
-			processId := strings.ReplaceAll(table.GetCell(selectedRow, 2).Text, "|", "")
+			taskKey := strings.ReplaceAll(table.GetCell(selectedRow, 2).Text, "|", "")
+			taskKey = strings.TrimSpace(taskKey)
+
+			processId := strings.ReplaceAll(table.GetCell(selectedRow, 3).Text, "|", "")
 			processId = strings.TrimSpace(processId)
 
 			reDefineDecision := tview.NewCheckbox().
@@ -641,24 +655,36 @@ func (m *BPMNManager) createUserTasksTable() *tview.Flex {
 				SetLabel("DbDecision: ").SetChecked(false)
 			// dbDecision.SetBorderPadding(1, 1, 1, 1)
 
+			businessApproved := tview.NewCheckbox().
+				SetLabel("BusinessApproved: ").SetChecked(false)
+
+			technicalApproved := tview.NewCheckbox().
+				SetLabel("TechnicalApproved: ").SetChecked(false)
+
+			operationApproved := tview.NewCheckbox().
+				SetLabel("OperationApproved: ").SetChecked(false)
+
 			form := tview.NewForm().
 				AddTextView("Task Id:", taskId, 10, 1, true, false).
+				AddTextView("Task Definition Key:", taskKey, 30, 1, true, false).
 				AddTextView("Process Id:", processId, 10, 1, true, false).
-				AddFormItem(reDefineDecision).
-				AddFormItem(dbDecision).
 
 				// AddInputField("Name", "", 20, nil, nil).
 				// AddInputField("ReDefineDecision", "", 10, nil, nil).
 				// AddInputField("DbDecision", "", 10, nil, nil).
 				// AddCheckbox("ReDefineDecision", false, nil).
 				// AddCheckbox("DbDecision", false, nil).
-				AddTextArea("Task Description", "", 20, 8, 30, nil).
+				// AddTextArea("Task Description", "", 20, 8, 30, nil).
 				AddButton("Complete Task", func() {
 
 					data := models.FormData{
-						ReDefineDecision: reDefineDecision.IsChecked(),
-						DbDecision:       dbDecision.IsChecked(),
-						Comment:          "test comment",
+						ReDefineDecision:  reDefineDecision.IsChecked(),
+						DbDecision:        dbDecision.IsChecked(),
+						BusinessApproved:  businessApproved.IsChecked(),
+						TechnicalApproved: technicalApproved.IsChecked(),
+						OperationApproved: operationApproved.IsChecked(),
+						Comment:           "test comment",
+						Message:           "Comeleted by BPMN-MANAGER",
 					}
 					err := m.apiClient.CompleteTask(taskId, data)
 					if err != nil {
@@ -677,7 +703,19 @@ func (m *BPMNManager) createUserTasksTable() *tview.Flex {
 					// Simulate completing the task by stopping the app
 					// Normally, this would trigger a BPMN event like moving to the next task or workflow step
 				})
-				// SetButtonsAlign(tview.AlignCenter).
+			// SetButtonsAlign(tview.AlignCenter).
+
+			switch taskKey {
+			case "Activity_0ol9pgw":
+				form.AddFormItem(reDefineDecision).
+					AddFormItem(dbDecision)
+			case "Activity_0bowttv":
+				form.AddFormItem(businessApproved)
+			case "Activity_06k5ayj":
+				form.AddFormItem(technicalApproved)
+			case "Activity_018w7i0":
+				form.AddFormItem(operationApproved)
+			}
 
 			form.SetBorder(true).SetBorderColor(tcell.Color102)
 			form.SetTitle(" User Task Form ")
@@ -1117,6 +1155,37 @@ func main() {
 
 	fmt.Printf("Starting BPMN Manager with API: %s\n", baseURL)
 	fmt.Println("Initializing UI...")
+
+	// resp, err := http.Get(baseURL + "/api/user/tasks/all")
+	// if err != nil {
+	// 	fmt.Printf("Error making GET request: %v", err)
+	// }
+	// defer resp.Body.Close() // Ensure the body is closed after reading.
+
+	// // Check if the response status is OK (200)
+	// if resp.StatusCode != http.StatusOK {
+	// 	fmt.Printf("Error: HTTP status %d", resp.StatusCode)
+	// }
+
+	// // Read the response body
+	// body, err := ioutil.ReadAll(resp.Body)
+	// if err != nil {
+	// 	fmt.Printf("Error reading response body: %v", err)
+	// }
+
+	// // Print the raw response body (optional)
+	// // fmt.Println("Raw Response Body:", string(body))
+
+	// // Parse the response body into a slice of Post structs
+	// var posts []models.UserTask
+	// err = json.Unmarshal(body, &posts)
+	// if err != nil {
+	// 	fmt.Printf("Error unmarshalling JSON response: %v", err)
+	// }
+
+	// for _, task := range posts {
+	// 	fmt.Println(task)
+	// }
 
 	manager := NewBPMNManager(baseURL)
 	if err := manager.Run(); err != nil {

@@ -67,16 +67,17 @@ type ProcessInstance struct {
 
 // API Specific Types
 type UserTask struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	ProcessID    string    `json:"processInstanceId"`
-	ProcessName  string    `json:"process_name"`
-	ActivityName string    `json:"activity_name"`
-	Assignee     string    `json:"assignee"`
-	DueDate      time.Time `json:"due_date"`
-	Status       string    `json:"processStatus"`
-	Priority     string    `json:"status"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID                string    `json:"id"`
+	Name              string    `json:"name"`
+	ProcessID         string    `json:"processInstanceId"`
+	ProcessName       string    `json:"process_name"`
+	ActivityName      string    `json:"activity_name"`
+	Assignee          string    `json:"assignee"`
+	DueDate           time.Time `json:"due_date"`
+	Status            string    `json:"processStatus"`
+	Priority          string    `json:"status"`
+	CreatedAt         time.Time `json:"created_at"`
+	TaskDefinitionKey string    `json:"taskDefinitionKey"`
 }
 
 type RunningProcess struct {
@@ -96,6 +97,7 @@ type ProcessDetails struct {
 	ProcessDefinitionId  string                 `json:"processDefinitionId"`
 	ProcessDefinitionKey string                 `json:"processDefinitionKey"`
 	StartTime            string                 `json:"startTime"`
+	EndTime              string                 `json:"endTime"`
 	CurrentVariables     map[string]interface{} `json:"currentVariables"`
 	Name                 string                 `json:"name"`
 	Description          string                 `json:"description"`
@@ -156,7 +158,11 @@ type Task struct {
 }
 
 type FormData struct {
-	ReDefineDecision bool   `json:"reDefineDecision"`
-	DbDecision       bool   `json:"dbDecision"`
-	Comment          string `json:"comment"`
+	ReDefineDecision  bool   `json:"reDefineDecision"`
+	DbDecision        bool   `json:"dbDecision"`
+	BusinessApproved  bool   `json:"businessApproved"`
+	TechnicalApproved bool   `json:"technicalApproved"`
+	OperationApproved bool   `json:"operationApproved"`
+	Comment           string `json:"comment"`
+	Message           string `json:"message"`
 }
